@@ -77,6 +77,13 @@ Open the generated URL using the default browser:
 $ aws-console --browser
 ```
 
+---
+
+Open the generated URL using the Firefox Container:
+```shell
+$ aws-console -m
+```
+
 Or copy the URL to the system clipboard:
 ```shell
 $ aws-console --clipboard

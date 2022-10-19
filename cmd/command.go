@@ -8,6 +8,7 @@ package cmd
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/joshdk/aws-console/credentials"
 	"github.com/joshdk/aws-console/qr"
 	"github.com/pkg/browser"
+	"github.com/skratchdot/open-golang/open"
 	"github.com/spf13/cobra"
 	"jdk.sh/meta"
 )
@@ -55,6 +57,9 @@ type flags struct {
 
 	// userAgent is the user agent to use when making API calls.
 	userAgent string
+
+	// use firefox containers
+	multiContainer bool
 }
 
 // Command returns a complete handler for the aws-console cli.
@@ -109,7 +114,7 @@ func Command() *cobra.Command { //nolint:cyclop
 			}
 
 			// Generate a login URL for the AWS Console.
-			url, err := console.GenerateLoginURL(creds, flags.duration, location, flags.userAgent)
+			loginURL, err := console.GenerateLoginURL(creds, flags.duration, location, flags.userAgent)
 			if err != nil {
 				return err
 			}
@@ -117,18 +122,22 @@ func Command() *cobra.Command { //nolint:cyclop
 			switch {
 			case flags.qr:
 				// Render the login url as a QR code.
-				return qr.Render(os.Stdout, url.String(), flags.qrSize)
+				return qr.Render(os.Stdout, loginURL.String(), flags.qrSize)
 			case flags.browser:
-				// Open the login url with the default browser.
-				return browser.OpenURL(url.String())
+				return browser.OpenURL(loginURL.String())
+
+			case flags.multiContainer:
+				containerURL := fmt.Sprintf("ext+container:name=%s&url=%s", url.QueryEscape(flags.profile), url.QueryEscape(loginURL.String()))
+				return open.RunWith(containerURL, "firefox")
+
 			case flags.clipboard:
 				// Copy the login url to the system clipboard.
 				fmt.Println("Copied AWS Console login URL to clipboard.") //nolint:forbidigo
 
-				return clipboard.WriteAll(url.String())
+				return clipboard.WriteAll(loginURL.String())
 			default:
 				// Print the login url.
-				fmt.Println(url.String()) //nolint:forbidigo
+				fmt.Println(loginURL.String()) //nolint:forbidigo
 
 				return nil
 			}
@@ -179,6 +188,11 @@ func Command() *cobra.Command { //nolint:cyclop
 	cmd.Flags().StringVarP(&flags.userAgent, "user-agent", "A",
 		versionFmt("joshdk/aws-console", " %s (%s)", meta.Version(), meta.ShortSHA()),
 		"user agent to use for http requests")
+
+	// Define -m/--container flag.
+	cmd.Flags().BoolVarP(&flags.multiContainer, "container", "m",
+		false,
+		"open URL in a Firefox Container")
 
 	cmd.Example = `  Generate a login url for the default profile:
   $ aws-console
