@@ -136,10 +136,10 @@ func Command() *cobra.Command { //nolint:cyclop
 
 				return clipboard.WriteAll(loginURL.String())
 			default:
-				// Print the login url.
+				// Open in firefox multicontainer
 				fmt.Println(loginURL.String()) //nolint:forbidigo
-
-				return nil
+				containerURL := fmt.Sprintf("ext+container:name=%s&url=%s", url.QueryEscape(flags.profile), url.QueryEscape(loginURL.String()))
+				return open.RunWith(containerURL, "firefox")
 			}
 		},
 	}
